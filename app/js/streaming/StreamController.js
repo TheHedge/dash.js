@@ -25,7 +25,6 @@
         STREAM_BUFFER_END_THRESHOLD = 6,
         STREAM_END_THRESHOLD = 0.2,
         autoPlay = true,
-        protectionData,
         isStreamSwitchingInProgress = false,
 
         play = function () {
@@ -264,7 +263,7 @@
                         stream.setPlaybackController(playbackCtrl);
                         playbackCtrl.subscribe(MediaPlayer.dependencies.PlaybackController.eventList.ENAME_PLAYBACK_ERROR, stream);
                         playbackCtrl.subscribe(MediaPlayer.dependencies.PlaybackController.eventList.ENAME_PLAYBACK_METADATA_LOADED, stream);
-                        stream.initProtection(protectionData);
+                        stream.initProtection();
                         stream.setAutoPlay(autoPlay);
                         stream.load(manifest);
                         stream.subscribe(MediaPlayer.dependencies.Stream.eventList.ENAME_STREAM_UPDATED, self);
@@ -298,12 +297,20 @@
             self.notify(MediaPlayer.dependencies.StreamController.eventList.ENAME_STREAMS_COMPOSED);
         },
 
+        onTimeSyncAttemptCompleted = function (/*e*/) {
+            composeStreams.call(this);
+        },
+
         onManifestLoaded = function(e) {
             if (!e.error) {
                 this.manifestModel.setValue(e.data.manifest);
+
                 this.debug.log("Manifest has loaded.");
                 //self.debug.log(self.manifestModel.getValue());
-                composeStreams.call(this);
+
+                // before composing streams, attempt to syncronise with some
+                // time source (if there are any available)
+                this.timeSyncController.initialize(this.manifestExt.getUTCTimingSources(e.data.manifest));
             } else {
                 this.reset();
             }
@@ -315,6 +322,7 @@
         manifestLoader: undefined,
         manifestUpdater: undefined,
         manifestModel: undefined,
+        manifestExt: undefined,
         adapter: undefined,
         debug: undefined,
         metricsModel: undefined,
@@ -322,6 +330,8 @@
         videoExt: undefined,
         liveEdgeFinder: undefined,
         timelineConverter: undefined,
+        protectionExt: undefined,
+        timeSyncController: undefined,
         errHandler: undefined,
         notify: undefined,
         subscribe: undefined,
@@ -334,6 +344,8 @@
             this[MediaPlayer.dependencies.PlaybackController.eventList.ENAME_PLAYBACK_SEEKING] = onSeeking;
             this[MediaPlayer.dependencies.PlaybackController.eventList.ENAME_PLAYBACK_PROGRESS] = onProgress;
             this[MediaPlayer.dependencies.PlaybackController.eventList.ENAME_PLAYBACK_TIME_UPDATED] = onTimeupdate;
+
+            this[MediaPlayer.dependencies.TimeSyncController.eventList.ENAME_TIME_SYNCRONISATION_COMPLETED] = onTimeSyncAttemptCompleted;
         },
 
         setAutoPlay: function (value) {
@@ -345,7 +357,7 @@
         },
 
         setProtectionData: function (value) {
-            protectionData = value;
+            this.protectionExt.init(value);
         },
 
         getVideoModel: function () {
@@ -358,6 +370,12 @@
 
         getActiveStreamInfo: function() {
             return activeStream ? activeStream.getStreamInfo() : null;
+        },
+
+        initialize: function () {
+            this.timeSyncController.subscribe(MediaPlayer.dependencies.TimeSyncController.eventList.ENAME_TIME_SYNCRONISATION_COMPLETED, this.timelineConverter);
+            this.timeSyncController.subscribe(MediaPlayer.dependencies.TimeSyncController.eventList.ENAME_TIME_SYNCRONISATION_COMPLETED, this.liveEdgeFinder);
+            this.timeSyncController.subscribe(MediaPlayer.dependencies.TimeSyncController.eventList.ENAME_TIME_SYNCRONISATION_COMPLETED, this);
         },
 
         load: function (url) {
@@ -374,6 +392,11 @@
                     switchVideoModel.call(this, activeStream.getVideoModel(), this.getVideoModel());
                 }
             }
+
+            this.timeSyncController.unsubscribe(MediaPlayer.dependencies.TimeSyncController.eventList.ENAME_TIME_SYNCRONISATION_COMPLETED, this.timelineConverter);
+            this.timeSyncController.unsubscribe(MediaPlayer.dependencies.TimeSyncController.eventList.ENAME_TIME_SYNCRONISATION_COMPLETED, this.liveEdgeFinder);
+            this.timeSyncController.unsubscribe(MediaPlayer.dependencies.TimeSyncController.eventList.ENAME_TIME_SYNCRONISATION_COMPLETED, this);
+            this.timeSyncController.reset();
 
             for (var i = 0, ln = streams.length; i < ln; i++) {
                 var stream = streams[i];

@@ -14,6 +14,21 @@
 MediaPlayer.di.Context = function () {
     "use strict";
 
+    var mapProtectionModel = function() {
+        var videoElement = document.createElement("video");
+
+        // Detect EME APIs.  Look for newest API versions first
+        if (MediaPlayer.models.ProtectionModel_3Feb2014.detect(videoElement)) {
+            this.system.mapClass('protectionModel', MediaPlayer.models.ProtectionModel_3Feb2014);
+        } else if (MediaPlayer.models.ProtectionModel_01b.detect(videoElement)) {
+            this.system.mapClass('protectionModel', MediaPlayer.models.ProtectionModel_01b);
+        } else {
+            var debug = this.system.getObject("debug");
+            debug.log("No supported version of EME detected on this user agent!");
+            debug.log("Attempts to play encrypted content will fail!");
+        }
+    };
+
     return {
         system : undefined,
         setup : function () {
@@ -30,7 +45,10 @@ MediaPlayer.di.Context = function () {
             this.system.mapSingleton('manifestModel', MediaPlayer.models.ManifestModel);
             this.system.mapSingleton('metricsModel', MediaPlayer.models.MetricsModel);
             this.system.mapSingleton('uriQueryFragModel', MediaPlayer.models.URIQueryAndFragmentModel);
-            this.system.mapClass('protectionModel', MediaPlayer.models.ProtectionModel);
+
+            this.system.mapSingleton('ksPlayReady', MediaPlayer.dependencies.protection.KeySystem_PlayReady);
+            this.system.mapSingleton('ksWidevine', MediaPlayer.dependencies.protection.KeySystem_Widevine);
+            this.system.mapSingleton('ksClearKey', MediaPlayer.dependencies.protection.KeySystem_ClearKey);
 
             this.system.mapSingleton('requestModifierExt', MediaPlayer.dependencies.RequestModifierExtensions);
             this.system.mapSingleton('textSourceBuffer', MediaPlayer.dependencies.TextSourceBuffer);
@@ -38,10 +56,12 @@ MediaPlayer.di.Context = function () {
             this.system.mapSingleton('sourceBufferExt', MediaPlayer.dependencies.SourceBufferExtensions);
             this.system.mapSingleton('abrController', MediaPlayer.dependencies.AbrController);
             this.system.mapSingleton('errHandler', MediaPlayer.dependencies.ErrorHandler);
-            this.system.mapSingleton('protectionExt', MediaPlayer.dependencies.ProtectionExtensions);
             this.system.mapSingleton('videoExt', MediaPlayer.dependencies.VideoModelExtensions);
-            this.system.mapSingleton('protectionController', MediaPlayer.dependencies.ProtectionController);
+            this.system.mapSingleton('protectionExt', MediaPlayer.dependencies.ProtectionExtensions);
+            this.system.mapClass('protectionController', MediaPlayer.dependencies.ProtectionController);
             this.system.mapClass('playbackController', MediaPlayer.dependencies.PlaybackController);
+
+            mapProtectionModel.call(this); // Determines EME API support and version
 
             this.system.mapSingleton('liveEdgeFinder', MediaPlayer.dependencies.LiveEdgeFinder);
 
@@ -54,15 +74,18 @@ MediaPlayer.di.Context = function () {
             this.system.mapSingleton('abrRulesCollection', MediaPlayer.rules.ABRRulesCollection);
 
             this.system.mapSingleton('rulesController', MediaPlayer.rules.RulesController);
-            this.system.mapClass('liveEdgeBinarySearchRule', MediaPlayer.rules.LiveEdgeBinarySearchRule);
             this.system.mapClass('bufferLevelRule', MediaPlayer.rules.BufferLevelRule);
             this.system.mapClass('pendingRequestsRule', MediaPlayer.rules.PendingRequestsRule);
             this.system.mapClass('playbackTimeRule', MediaPlayer.rules.PlaybackTimeRule);
             this.system.mapClass('sameTimeRequestRule', MediaPlayer.rules.SameTimeRequestRule);
             this.system.mapSingleton('scheduleRulesCollection', MediaPlayer.rules.ScheduleRulesCollection);
 
+            this.system.mapClass('liveEdgeBinarySearchRule', MediaPlayer.rules.LiveEdgeBinarySearchRule);
+            this.system.mapClass('liveEdgeWithTimeSyncronisationRule', MediaPlayer.rules.LiveEdgeWithTimeSyncronisationRule);
+            this.system.mapSingleton('syncronisationRulesCollection', MediaPlayer.rules.SyncronisationRulesCollection);
+
             this.system.mapClass('streamProcessor', MediaPlayer.dependencies.StreamProcessor);
-			this.system.mapClass('eventController', MediaPlayer.dependencies.EventController);
+            this.system.mapClass('eventController', MediaPlayer.dependencies.EventController);
             this.system.mapClass('textController', MediaPlayer.dependencies.TextController);
             this.system.mapClass('bufferController', MediaPlayer.dependencies.BufferController);
             this.system.mapSingleton('manifestLoader', MediaPlayer.dependencies.ManifestLoader);
@@ -73,6 +96,7 @@ MediaPlayer.di.Context = function () {
             this.system.mapSingleton('streamController', MediaPlayer.dependencies.StreamController);
             this.system.mapClass('stream', MediaPlayer.dependencies.Stream);
             this.system.mapClass('scheduleController', MediaPlayer.dependencies.ScheduleController);
+            this.system.mapSingleton('timeSyncController', MediaPlayer.dependencies.TimeSyncController);
 
             this.system.mapSingleton('notifier', MediaPlayer.dependencies.Notifier);
         }

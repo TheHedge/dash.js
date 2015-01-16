@@ -19,7 +19,7 @@ Dash.dependencies.DashHandler = function () {
         isDynamic,
         type,
         currentTime = 0,
-		absUrl = new RegExp('^(?:(?:[a-z]+:)?\/)?\/', 'i'),
+        absUrl = new RegExp('^(?:(?:[a-z]+:)?\/)?\/', 'i'),
 
         zeroPadToLength = function (numStr, minStrLength) {
             while (numStr.length < minStrLength) {
@@ -289,7 +289,7 @@ Dash.dependencies.DashHandler = function () {
                     scaledTime = time / fTimescale;
                 }
 
-                //This is a special case: "A negative value of the @r attribute of the S element indicates that the duration indicated in @d attribute repeats until the start of the next S element, the end of the Period or until the 
+                //This is a special case: "A negative value of the @r attribute of the S element indicates that the duration indicated in @d attribute repeats until the start of the next S element, the end of the Period or until the
                 // next MPD update."
                 if (repeat < 0) {
                     nextFrag = fragments[i+1];
@@ -412,7 +412,7 @@ Dash.dependencies.DashHandler = function () {
             if (!periodRelativeRange) {
                 periodRelativeRange = self.timelineConverter.calcSegmentAvailabilityRange(representation, isDynamic);
             }
-            
+
             if (isDynamic && !self.timelineConverter.isTimeSyncCompleted()) {
                 start = Math.floor(periodRelativeRange.start / duration);
                 end = Math.floor(periodRelativeRange.end / duration);
@@ -511,6 +511,8 @@ Dash.dependencies.DashHandler = function () {
                 segments = [],
                 list = representation.adaptation.period.mpd.manifest.Period_asArray[representation.adaptation.period.index].
                     AdaptationSet_asArray[representation.adaptation.index].Representation_asArray[representation.index].SegmentList,
+                baseURL = representation.adaptation.period.mpd.manifest.Period_asArray[representation.adaptation.period.index].
+                    AdaptationSet_asArray[representation.adaptation.index].Representation_asArray[representation.index].BaseURL,
                 len = list.SegmentURL_asArray.length,
                 periodSegIdx,
                 seg,
@@ -535,7 +537,7 @@ Dash.dependencies.DashHandler = function () {
                     periodSegIdx);
 
                 seg.replacementTime = (start + periodSegIdx - 1) * representation.segmentDuration;
-                seg.media = s.media;
+                seg.media = s.media ? s.media : baseURL;
                 seg.mediaRange = s.mediaRange;
                 seg.index = s.index;
                 seg.indexRange = s.indexRange;
